@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Churn Prediction</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #e0eafc, #cfdef3);
+            margin: 0;
+            padding: 40px;
+        }
+
+        h2 {
+            color: #1f3c88;
+        }
+
+        label {
+            margin-top: 12px;
+            margin-bottom: 4px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        input, select {
+            margin: 6px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus, select:focus {
+            border-color: #4a90e2;
+            box-shadow: 0 0 5px rgba(74,144,226,0.4);
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 12px;
+            background: linear-gradient(90deg, #4a90e2, #007BFF);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.03);
+            background: linear-gradient(90deg, #007BFF, #0056b3);
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 16px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>Customer Churn Prediction</h2>
+
+    <form id="churnForm">
+         <label>Gender</label>
+        <select name="gender">
+            <option>Male</option>
+            <option>Female</option>
+        </select>
+        <label>Senior Citizen (0 = No, 1 = Yes)</label>
+        <input type="number" name="SeniorCitizen" placeholder="SeniorCitizen (0 or 1)" min="0" max="1" required>
+        
+        <label>Partner</label>
+        <select name="Partner">
+            <option>Yes</option>
+            <option>No</option>
+        </select>
+
+        <label>Dependents</label>
+        <select name="Dependents">
+            <option>Yes</option>
+            <option>No</option>
+        </select>
+
+        <label>Tenure</label>
+        <input type="number" name="tenure" placeholder="Tenure (months)" required>
+
+        <label>PhoneService</label>
+        <select name="PhoneService">
+            <option>Yes</option>
+            <option>No</option>
+        </select>
+
+        <label>PaperlessBilling</label>
+        <select name="PaperlessBilling">
+            <option>Yes</option>
+            <option>No</option>
+        </select>
+
+        <label>MonthlyCharges</label>
+        <input type="number" step="0.01" name="MonthlyCharges" placeholder="Monthly Charges" required>
+
+        <label>TotalCharges</label>
+        <input type="number" step="0.01" name="TotalCharges" placeholder="Total Charges" required>
+
+        <label>Contract</label>
+        <select name="Contract">
+            <option>Month-to-month</option>
+            <option>One year</option>
+            <option>Two year</option>
+        </select>
+
+        <label>PaymentMethod</label>
+        <select name="PaymentMethod">
+            <option>Electronic check</option>
+            <option>Mailed check</option>
+            <option>Bank transfer (automatic)</option>
+            <option>Credit card (automatic)</option>
+        </select>
+
+        <label>InternetService</label>
+        <select name="InternetService">
+            <option>DSL</option>
+            <option>Fiber optic</option>
+            <option>No</option>
+        </select>
+
+        <button type="submit">Predict</button>
+    </form>
+
+    <div id="result"></div>
+</div>
+
+<script>
+document.getElementById("churnForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    document.getElementById("result").innerHTML =
+        '<p class="loading">Predicting...</p>';
+
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    data.SeniorCitizen = parseInt(data.SeniorCitizen);
+    data.tenure = parseInt(data.tenure);
+    data.MonthlyCharges = parseFloat(data.MonthlyCharges);
+    data.TotalCharges = parseFloat(data.TotalCharges);
+
+    try {
+        const response = await fetch("http://127.0.0.1:8000/predict", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            document.getElementById("result").innerHTML =
+                `<p style="color:red;">${result.error}</p>`;
+            return;
+        }
+
+        const color =
+            result.risk_level === "High" ? "red" :
+            result.risk_level === "Medium" ? "orange" : "green";
+
+        document.getElementById("result").innerHTML = `
+            <p><b>Churn Probability:</b> ${(result.churn_probability * 100).toFixed(2)}%</p>
+            <p><b>Prediction:</b> ${result.prediction}</p>
+            <p><b>Risk Level:</b> <span style="color:${color};font-weight:bold">
+                ${result.risk_level}
+            </span></p>
+        `;
+
+    } catch (err) {
+        document.getElementById("result").innerHTML =
+            `<p style="color:red;">Backend not reachable</p>`;
+    }
+});
+</script>
+
+</body>
+</html>
+
+
+
