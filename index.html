@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <title>Churn Prediction</title>
 
     <style>
@@ -93,78 +94,165 @@
 
 <div class="container">
     <h2>Customer Churn Prediction</h2>
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+        <button
+            id="tab-single"
+            onclick="switchTab('single')"
+            style="flex:1; padding:10px; background:#1f3c88;
+                   color:white; border:none; border-radius:8px;
+                   font-weight:bold; cursor:pointer;">
+            Single Prediction
+        </button>
+        <button
+            id="tab-batch"
+            onclick="switchTab('batch')"
+            style="flex:1; padding:10px; background:#e0e0e0;
+                   color:#333; border:none; border-radius:8px;
+                   font-weight:bold; cursor:pointer;">
+            Batch Prediction (CSV)
+        </button>
+    </div>
+    <!-- Single Prediction Tab -->
+    <div id="panel-single">
 
-    <form id="churnForm">
-         <label>Gender</label>
-        <select name="gender">
-            <option>Male</option>
-            <option>Female</option>
-        </select>
-        <label>Senior Citizen (0 = No, 1 = Yes)</label>
-        <input type="number" name="SeniorCitizen" placeholder="SeniorCitizen (0 or 1)" min="0" max="1" required>
-        
-        <label>Partner</label>
-        <select name="Partner">
-            <option>Yes</option>
-            <option>No</option>
-        </select>
+        <form id="churnForm">
+            <label>Gender</label>
+            <select name="gender">
+                <option>Male</option>
+                <option>Female</option>
+            </select>
 
-        <label>Dependents</label>
-        <select name="Dependents">
-            <option>Yes</option>
-            <option>No</option>
-        </select>
+            <label>Senior Citizen (0 = No, 1 = Yes)</label>
+            <input type="number" name="SeniorCitizen" placeholder="SeniorCitizen (0 or 1)" min="0" max="1" required>
 
-        <label>Tenure</label>
-        <input type="number" name="tenure" placeholder="Tenure (months)" required>
+            <label>Partner</label>
+            <select name="Partner">
+                <option>Yes</option>
+                <option>No</option>
+            </select>
 
-        <label>PhoneService</label>
-        <select name="PhoneService">
-            <option>Yes</option>
-            <option>No</option>
-        </select>
+            <label>Dependents</label>
+            <select name="Dependents">
+                <option>Yes</option>
+                <option>No</option>
+            </select>
 
-        <label>PaperlessBilling</label>
-        <select name="PaperlessBilling">
-            <option>Yes</option>
-            <option>No</option>
-        </select>
+            <label>Tenure</label>
+            <input type="number" name="tenure" placeholder="Tenure (months)" required>
 
-        <label>MonthlyCharges</label>
-        <input type="number" step="0.01" name="MonthlyCharges" placeholder="Monthly Charges" required>
+            <label>PhoneService</label>
+            <select name="PhoneService">
+                <option>Yes</option>
+                <option>No</option>
+            </select>
 
-        <label>TotalCharges</label>
-        <input type="number" step="0.01" name="TotalCharges" placeholder="Total Charges" required>
+            <label>PaperlessBilling</label>
+            <select name="PaperlessBilling">
+                <option>Yes</option>
+                <option>No</option>
+            </select>
 
-        <label>Contract</label>
-        <select name="Contract">
-            <option>Month-to-month</option>
-            <option>One year</option>
-            <option>Two year</option>
-        </select>
+            <label>MonthlyCharges</label>
+            <input type="number" step="0.01" name="MonthlyCharges" placeholder="Monthly Charges" required>
 
-        <label>PaymentMethod</label>
-        <select name="PaymentMethod">
-            <option>Electronic check</option>
-            <option>Mailed check</option>
-            <option>Bank transfer (automatic)</option>
-            <option>Credit card (automatic)</option>
-        </select>
+            <label>TotalCharges</label>
+            <input type="number" step="0.01" name="TotalCharges" placeholder="Total Charges" required>
 
-        <label>InternetService</label>
-        <select name="InternetService">
-            <option>DSL</option>
-            <option>Fiber optic</option>
-            <option>No</option>
-        </select>
+            <label>Contract</label>
+            <select name="Contract">
+                <option>Month-to-month</option>
+                <option>One year</option>
+                <option>Two year</option>
+            </select>
 
-        <button type="submit">Predict</button>
-    </form>
+            <label>PaymentMethod</label>
+            <select name="PaymentMethod">
+                <option>Electronic check</option>
+                <option>Mailed check</option>
+                <option>Bank transfer (automatic)</option>
+                <option>Credit card (automatic)</option>
+            </select>
 
-    <div id="result"></div>
-</div>
+            <label>InternetService</label>
+            <select name="InternetService">
+                <option>DSL</option>
+                <option>Fiber optic</option>
+                <option>No</option>
+            </select>
+
+            <button type="submit">Predict</button>
+        </form>
+
+        <div id="result"></div>
+
+        <div id="shap-container" style="display:none; margin-top:20px;">
+            <h3 style="color:#1f3c88; margin-bottom:8px;">
+                Why this prediction?
+            </h3>
+            <p style="font-size:13px; color:#666; margin-bottom:12px;">
+                Bars show which factors
+                <span style="color:red; font-weight:bold;">increased</span> or
+                <span style="color:green; font-weight:bold;">decreased</span>
+                the churn risk
+            </p>
+            <canvas id="shapChart" height="220"></canvas>
+        </div>
+
+    </div> <!-- ✅ end panel-single -->
+
+    <!-- Batch Prediction Tab -->
+    <div id="panel-batch" style="display:none;">
+
+        <div style="background:#f0f4ff; border-radius:10px;
+                    padding:16px; margin-bottom:16px;">
+            <p style="margin:0 0 8px 0; font-weight:600; color:#1f3c88;">
+                CSV Format Required
+            </p>
+            <p style="margin:0; font-size:13px; color:#555;">
+                Your CSV must have these columns:<br>
+                <code style="font-size:12px; color:#333;">
+                    gender, SeniorCitizen, Partner, Dependents, tenure,
+                    PhoneService, PaperlessBilling, MonthlyCharges,
+                    TotalCharges, Contract, PaymentMethod, InternetService
+                </code>
+            </p>
+        </div>
+
+        <label>Upload CSV File</label>
+        <input type="file" id="csvFile" accept=".csv"
+               style="margin:8px 0 16px 0; padding:10px;
+                      border:1px solid #ccc; border-radius:8px;
+                      width:100%; box-sizing:border-box;">
+
+        <button type="button" onclick="submitBatch()"
+                style="width:100%; padding:12px;
+                       background:linear-gradient(90deg,#4a90e2,#007BFF);
+                       color:white; border:none; border-radius:8px;
+                       font-size:16px; cursor:pointer;">
+            Upload & Predict
+        </button>
+
+        <div id="batch-result" style="margin-top:16px; font-size:15px;"></div>
+
+        <div id="download-section" style="display:none;
+             margin-top:12px; text-align:center;">
+            <a id="download-link"
+               style="display:inline-block; padding:12px 28px;
+                      background:#28a745; color:white;
+                      border-radius:8px; text-decoration:none;
+                      font-weight:bold;">
+                Download Results CSV
+            </a>
+        </div>
+
+    </div> <!-- ✅ end panel-batch -->
+
+</div> <!-- ✅ end container -->
 
 <script>
+
+    let shapChartInstance = null; 
+
 document.getElementById("churnForm").addEventListener("submit", async function(e) {
     e.preventDefault();
 
@@ -205,12 +293,154 @@ document.getElementById("churnForm").addEventListener("submit", async function(e
                 ${result.risk_level}
             </span></p>
         `;
+        if (result.top_factors && result.top_factors.length > 0) {
+    document.getElementById("shap-container").style.display = "block";
+
+    const labels = result.top_factors.map(f => f.feature);
+    const values = result.top_factors.map(f => f.value);
+    const colors = values.map(v =>
+        v > 0
+        ? "rgba(220, 53, 69, 0.75)"    // red = increases churn risk
+        : "rgba(40, 167, 69, 0.75)"    // green = decreases churn risk
+    );
+
+    // Destroy previous chart if it exists
+    if (shapChartInstance) {
+        shapChartInstance.destroy();
+    }
+
+    const ctx = document.getElementById("shapChart").getContext("2d");
+    shapChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "SHAP Impact on Churn Risk",
+                data: values,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c.replace("0.75", "1")),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: "y",          // horizontal bar chart
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const val = ctx.raw;
+                            const dir = val > 0 ? " increases" : " decreases";
+                            return ` ${dir} churn risk (${val.toFixed(4)})`;
+                                                   }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: "SHAP Value (impact on prediction)"
+                    },
+                    grid: { color: "#eee" }
+                },
+                y: {
+                    ticks: { font: { size: 12 } }
+                }
+            }
+        }
+    });
+}
 
     } catch (err) {
         document.getElementById("result").innerHTML =
             `<p style="color:red;">Backend not reachable</p>`;
     }
 });
+
+// ── Tab switching ─────────────────────────────────────────
+function switchTab(tab) {
+    const isSingle = tab === 'single';
+
+    document.getElementById("panel-single").style.display =
+        isSingle ? "block" : "none";
+    document.getElementById("panel-batch").style.display =
+        isSingle ? "none" : "block";
+
+    document.getElementById("tab-single").style.background =
+        isSingle ? "#1f3c88" : "#e0e0e0";
+    document.getElementById("tab-single").style.color =
+        isSingle ? "white" : "#333";
+
+    document.getElementById("tab-batch").style.background =
+        isSingle ? "#e0e0e0" : "#1f3c88";
+    document.getElementById("tab-batch").style.color =
+        isSingle ? "#333" : "white";
+}
+
+// ── Batch prediction ──────────────────────────────────────
+async function submitBatch() {
+    const fileInput = document.getElementById("csvFile");
+    const batchResult = document.getElementById("batch-result");
+    const downloadSection = document.getElementById("download-section");
+
+    if (!fileInput.files.length) {
+        batchResult.innerHTML =
+            '<p style="color:red;">Please select a CSV file first.</p>';
+        return;
+    }
+
+    batchResult.innerHTML =
+        '<p style="color:#666; font-style:italic;">Processing...</p>';
+    downloadSection.style.display = "none";
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    try {
+        const response = await fetch("http://127.0.0.1:8000/predict_batch", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            batchResult.innerHTML =
+                `<p style="color:red;">${err.error}</p>`;
+            return;
+        }
+
+        // Convert response to downloadable blob
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        // Count rows from original file for summary
+        const text = await fileInput.files[0].text();
+        const rowCount = text.trim().split("\n").length - 1;
+
+        batchResult.innerHTML = `
+            <p style="color:green; font-weight:bold;">
+                 Done! Processed ${rowCount} customer(s).
+            </p>
+            <p style="font-size:13px; color:#555;">
+                Results include: Churn_Probability, Prediction,
+                Risk_Level, and Top_Factors for each row.
+            </p>`;
+
+        // Set up download link
+        document.getElementById("download-link").href = url;
+        document.getElementById("download-link").download =
+            "churn_predictions.csv";
+        downloadSection.style.display = "block";
+
+    } catch (err) {
+        batchResult.innerHTML =
+            `<p style="color:red;">Backend not reachable</p>`;
+    }
+}
+// ─────────────────────────────────────────────────────────
+
 </script>
 
 </body>

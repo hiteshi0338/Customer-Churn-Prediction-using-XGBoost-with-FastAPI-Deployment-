@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Churn Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4ff;
+            color: #1a1a1a;
+        }
+
+        /* ── Nav ── */
+        .navbar {
+            background: #1f3c88;
+            padding: 14px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .navbar h1 {
+            color: white;
+            font-size: 20px;
+        }
+        .navbar a {
+            color: #aac4ff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .navbar a:hover { color: white; }
+
+        /* ── Layout ── */
+        .page { padding: 28px 30px; }
+
+        /* ── Stat cards ── */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            text-align: center;
+        }
+        .card .number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1f3c88;
+        }
+        .card .label {
+            font-size: 13px;
+            color: #777;
+            margin-top: 4px;
+        }
+        .card.red   .number { color: #dc3545; }
+        .card.orange .number { color: #fd7e14; }
+        .card.green .number { color: #28a745; }
+
+        /* ── Chart grid ── */
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            margin-bottom: 28px;
+        }
+        .chart-box {
+            background: white;
+            border-radius: 42px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        }
+        .chart-box h3 {
+            font-size: 15px;
+            color: #1f3c88;
+            margin-bottom: 26px;
+        }
+        .chart-full {
+            grid-column: 1 / -1;
+        }
+
+        /* ── Table ── */
+        .table-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        }
+        .table-box h3 {
+            font-size: 15px;
+            color: #1f3c88;
+            margin-bottom: 16px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            background: #1f3c88;
+            color: white;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover td { background: #f8f9ff; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge.High   { background:#ffe0e0; color:#c0392b; }
+        .badge.Medium { background:#fff3cd; color:#856404; }
+        .badge.Low    { background:#d4edda; color:#155724; }
+        .badge.Churn  { background:#ffe0e0; color:#c0392b; }
+        .badge.NoChurn{ background:#d4edda; color:#155724; }
+
+        .empty {
+            text-align: center;
+            padding: 60px;
+            color: #aaa;
+            font-size: 15px;
+        }
+
+        .refresh-btn {
+            background: #1f3c88;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .refresh-btn:hover { background: #162d6e; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1> Churn Analytics Dashboard</h1>
+    <div style="display:flex; align-items:center; gap:16px;">
+        <span id="last-updated" style="color:#aac4ff; font-size:13px;"></span>
+        <button class="refresh-btn" onclick="loadDashboard()"> Refresh</button>
+        <a href="http://localhost:5500/index.html"> Back to Predictor</a>
+    </div>
+</div>
+
+<div class="page">
+
+    <!-- Stat Cards -->
+    <div class="cards">
+        <div class="card">
+            <div class="number" id="total">—</div>
+            <div class="label">Total Predictions</div>
+        </div>
+        <div class="card red">
+            <div class="number" id="high-count">—</div>
+            <div class="label">High Risk</div>
+        </div>
+        <div class="card orange">
+            <div class="number" id="med-count">—</div>
+            <div class="label">Medium Risk</div>
+        </div>
+        <div class="card green">
+            <div class="number" id="low-count">—</div>
+            <div class="label">Low Risk</div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="charts">
+        <div class="chart-box">
+            <h3> Risk Level Distribution</h3>
+            <canvas id="riskChart" height="80"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3> Churn vs No Churn</h3>
+            <canvas id="predChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="charts" style="margin-bottom:28px;">
+        <div class="chart-box chart-full">
+            <h3> Top Features Driving Churn Risk</h3>
+            <canvas id="featureChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Daily Trend -->
+    <div class="charts" style="margin-bottom:28px;">
+        <div class="chart-box chart-full">
+            <h3> Daily Prediction Trend (Last 14 Days)</h3>
+            <canvas id="trendChart" height="120"></canvas>
+        </div>
+    </div>
+
+    <!-- Recent Predictions Table -->
+    <div class="table-box">
+        <h3> Recent Predictions Log</h3>
+        <div id="table-container"></div>
+    </div>
+
+</div>
+
+<script>
+let charts = {};
+
+async function loadDashboard() {
+    try {
+        const res = await fetch("http://127.0.0.1:8000/dashboard/data");
+        const data = await res.json();
+
+        if (data.error) {
+            alert("Error: " + data.error);
+            return;
+        }
+
+        // Update last refreshed
+        document.getElementById("last-updated").textContent =
+            "Last updated: " + new Date().toLocaleTimeString();
+
+        if (data.total === 0) {
+            document.getElementById("total").textContent = "0";
+            document.getElementById("table-container").innerHTML =
+                '<div class="empty">No predictions yet.<br>' +
+                'Make some predictions first!</div>';
+            return;
+        }
+
+        // ── Stat cards ────────────────────────────────────
+        document.getElementById("total").textContent = data.total;
+        document.getElementById("high-count").textContent =
+            data.risk_distribution.High || 0;
+        document.getElementById("med-count").textContent =
+            data.risk_distribution.Medium || 0;
+        document.getElementById("low-count").textContent =
+            data.risk_distribution.Low || 0;
+
+        // ── Risk doughnut ─────────────────────────────────
+        renderChart("riskChart", "doughnut", {
+            labels: ["High", "Medium", "Low"],
+            datasets: [{
+                data: [
+                    data.risk_distribution.High   || 0,
+                    data.risk_distribution.Medium || 0,
+                    data.risk_distribution.Low    || 0
+                ],
+                backgroundColor: [
+                    "rgba(220,53,69,0.8)",
+                    "rgba(253,126,20,0.8)",
+                    "rgba(40,167,69,0.8)"
+                ]
+            }]
+        }, {
+            plugins: {
+                legend: { position: "right" }
+            }
+        });
+
+        // ── Prediction pie ────────────────────────────────
+        renderChart("predChart", "pie", {
+            labels: ["Churn", "No Churn"],
+            datasets: [{
+                data: [
+                    data.prediction_distribution.Churn    || 0,
+                    data.prediction_distribution["No Churn"] || 0
+                ],
+                backgroundColor: [
+                    "rgba(220,53,69,0.8)",
+                    "rgba(40,167,69,0.8)"
+                ]
+            }]
+        }, {
+            plugins: { legend: { position: "right" } }
+        });
+
+        // ── Top features bar ──────────────────────────────
+        const featLabels = Object.keys(data.top_features);
+        const featValues = Object.values(data.top_features);
+        renderChart("featureChart", "bar", {
+            labels: featLabels,
+            datasets: [{
+                label: "Times in Top Factors",
+                data: featValues,
+                backgroundColor: "rgba(31,60,136,0.75)",
+                borderColor: "rgba(31,60,136,1)",
+                borderWidth: 1
+            }]
+        }, {
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Frequency" }
+                }
+            }
+        });
+
+        // ── Daily trend line ──────────────────────────────
+        const days = Object.keys(data.daily_trend);
+        const churnCounts = days.map(
+            d => data.daily_trend[d].Churn || 0
+        );
+        const noChurnCounts = days.map(
+            d => data.daily_trend[d]["No Churn"] || 0
+        );
+        renderChart("trendChart", "line", {
+            labels: days,
+            datasets: [
+                {
+                    label: "Churn",
+                    data: churnCounts,
+                    borderColor: "rgba(220,53,69,1)",
+                    backgroundColor: "rgba(220,53,69,0.1)",
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: "No Churn",
+                    data: noChurnCounts,
+                    borderColor: "rgba(40,167,69,1)",
+                    backgroundColor: "rgba(40,167,69,0.1)",
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        }, {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Predictions" }
+                }
+            }
+        });
+
+        // ── Recent logs table ─────────────────────────────
+        if (!data.recent_logs.length) {
+            document.getElementById("table-container").innerHTML =
+                '<div class="empty">No logs yet.</div>';
+            return;
+        }
+
+        let rows = data.recent_logs.map(log => `
+            <tr>
+                <td>${log.timestamp}</td>
+                <td>${log.contract}</td>
+                <td>${log.internet}</td>
+                <td>${log.tenure} mo</td>
+                <td>$${log.monthly}</td>
+                <td>${(log.probability * 100).toFixed(1)}%</td>
+                <td>
+                    <span class="badge ${log.prediction.replace(' ','')}">
+                        ${log.prediction}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge ${log.risk}">
+                        ${log.risk}
+                    </span>
+                </td>
+                <td style="font-size:11px; color:#666;">
+                    ${log.top_factors || "—"}
+                </td>
+            </tr>
+        `).join("");
+
+        document.getElementById("table-container").innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Contract</th>
+                        <th>Internet</th>
+                        <th>Tenure</th>
+                        <th>Monthly</th>
+                        <th>Probability</th>
+                        <th>Prediction</th>
+                        <th>Risk</th>
+                        <th>Top Factors</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
+
+    } catch (err) {
+        console.error(err);
+        alert("Could not reach backend.");
+    }
+}
+
+// ── Chart helper — destroys old, creates new ──────────────
+function renderChart(id, type, data, options = {}) {
+    if (charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id).getContext("2d");
+    charts[id] = new Chart(ctx, {
+        type,
+        data,
+        options: { responsive: true, ...options }
+    });
+}
+
+// Load on page open
+loadDashboard();
+</script>
+
+</body>
+</html>
