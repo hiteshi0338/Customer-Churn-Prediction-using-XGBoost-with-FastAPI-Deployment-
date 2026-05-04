@@ -29,7 +29,15 @@ def get_db():
     finally:
         db.close()
 
-
+@app.get("/")
+def home():
+    return {
+        "message": "Customer Churn Prediction API",
+        "endpoints": {
+            "/predict": "Single prediction",
+            "/predict_batch": "Batch prediction"
+        }
+    }
 
 app.add_middleware(
     CORSMiddleware,
